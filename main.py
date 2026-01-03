@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import marr_hildreth_routes
+from api.routes import marr_hildreth_routes, canny_routes
 import uvicorn
 from config import Settings
 import os
@@ -36,6 +36,7 @@ app.add_middleware(
 )
 
 app.include_router(marr_hildreth_routes.router)
+app.include_router(canny_routes.router)
 
 @app.get("/")
 async def root():

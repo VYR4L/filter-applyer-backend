@@ -62,6 +62,65 @@ class ImageUtils:
         return gaussian
     
     @staticmethod
+    def sobel_filters(image_array: np.ndarray) -> list[tuple[np.ndarray, np.ndarray]]:
+        """Returns Sobel filters for x and y directions."""
+        kernel_x = np.array([[-1, 0, 1],
+                             [-2, 0, 2],
+                             [-1, 0, 1]], dtype=np.float32)
+
+        kernel_y = np.array([[1, 2, 1],
+                             [0, 0, 0],
+                             [-1, -2, -1]], dtype=np.float32)
+        
+        intensity_x = ImageUtils.convolve2d(image_array, kernel_x)
+        intensity_y = ImageUtils.convolve2d(image_array, kernel_y)
+
+        gradient_magnitude = np.hypot(intensity_x, intensity_y)  # Equivalent to sqrt(Ix^2 + Iy^2)
+
+        gradient_direction = np.arctan2(intensity_y, intensity_x)  # Angle in radians
+
+        return gradient_magnitude, gradient_direction
+    
+    @staticmethod
+    def non_maximum_suppression(gradient_magnitude: np.ndarray, gradient_direction: np.ndarray) -> np.ndarray:
+        """Applies non-maximum suppression to thin edges."""
+        image_height, image_width = gradient_magnitude.shape
+        suppressed_image = np.zeros((image_height, image_width), dtype=np.float32)
+
+        angle = gradient_direction * (180.0 / np.pi)
+        angle[angle < 0] += 180
+
+        for i in range(1, image_height - 1):
+            for j in range(1, image_width - 1):
+                q = 255
+                r = 255
+
+                # Angle 0 - East-West gradient -> Vertical edge
+                if (0 <= angle[i, j] < 22.5) or (157.5 <= angle[i, j] <= 180):
+                    q = gradient_magnitude[i, j + 1]
+                    r = gradient_magnitude[i, j - 1]
+                # Angle 45 - Northeast-Southwest gradient -> Diagonal edge
+                elif (22.5 <= angle[i, j] < 67.5):
+                    q = gradient_magnitude[i + 1, j - 1]
+                    r = gradient_magnitude[i - 1, j + 1]
+                # Angle 90 - North-South gradient -> Horizontal edge
+                elif (67.5 <= angle[i, j] < 112.5):
+                    q = gradient_magnitude[i + 1, j]
+                    r = gradient_magnitude[i - 1, j]
+                # Angle 135 - Northwest-Southeast gradient -> Diagonal edge
+                elif (112.5 <= angle[i, j] < 157.5):
+                    q = gradient_magnitude[i - 1, j - 1]
+                    r = gradient_magnitude[i + 1, j + 1]
+
+                # Local maximum check
+                if (gradient_magnitude[i, j] >= q) and (gradient_magnitude[i, j] >= r):
+                    suppressed_image[i, j] = gradient_magnitude[i, j]
+                else:
+                    suppressed_image[i, j] = 0
+
+        return suppressed_image
+    
+    @staticmethod
     def convert_to_grayscale(image: Image.Image) -> Image.Image:
         return image.convert("L")
     
