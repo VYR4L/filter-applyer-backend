@@ -11,7 +11,7 @@ help:
 	@echo "  run    	 - Run the application inside environment"
 	@echo "  clean  	 - Remove the environment"
 
-# Create Conda environment
+# Create environment
 create:
 	pip install -r requirements.txt
 
