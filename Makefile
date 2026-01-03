@@ -1,15 +1,11 @@
-# Environment name
-ENV_NAME ?= venv
-
 # Makefile targets
 .PHONY: help create run clean
 
 # Display help
 help:
 	@echo "Makefile commands:"
-	@echo "  create 	 - Create the environment from requirements.txt"
+	@echo "  create 	 - Create the environment with required packages"
 	@echo "  run    	 - Run the application inside environment"
-	@echo "  clean  	 - Remove the environment"
 
 # Create environment
 create:
@@ -18,7 +14,3 @@ create:
 # Run application
 run:
 	uvicorn main:app --reload
-
-# Remove environment
-clean:
-	rm -rf $(ENV_NAME)
