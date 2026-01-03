@@ -29,26 +29,6 @@ class MarrHildrethService:
             raise HTTPException(status_code=500, detail=str(e))
         
     @staticmethod
-    def convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-        image_height, image_width = image.shape
-        kernel_height, kernel_width = kernel.shape
-        pad_height = kernel_height // 2
-        pad_width = kernel_width // 2
-
-        # Pad the image to handle borders
-        padded_image = np.pad(image, ((pad_height, pad_height), (pad_width, pad_width)), mode='edge')
-        convolved_image = np.zeros_like(image)
-
-        # Perform convolution
-        for i in range(image_height):
-            for j in range(image_width):
-                region = padded_image[i:i + kernel_height, j:j + kernel_width]
-                convolved_value = np.sum(region * kernel)
-                convolved_image[i, j] = convolved_value
-
-        return convolved_image
-        
-    @staticmethod
     def marr_hildreth_edge_detection(image_array: np.ndarray, sigma: float, threshold: float = None) -> np.ndarray:
         if image_array is None:
             raise ValueError("Input image array cannot be None")
@@ -60,24 +40,12 @@ class MarrHildrethService:
         # Normalize image
         image_array = image_array.astype(np.float32) / 255.0
 
-        # Create Gaussian kernel
-        size = int(2 * np.ceil(3 * sigma) + 1)
-
-        x, y = np.meshgrid(
-            np.linspace(-size // 2, size // 2, size),
-            np.linspace(-size // 2, size // 2, size)
-        )
-
-        # Gaussian function
-        normalizer = -1 / (np.pi * sigma**4)
-        first_term = 1 - (x**2 + y**2) / (2 * sigma**2)  # Laplacian component
-        second_term = np.exp(-(x**2 + y**2) / (2 * sigma**2))  # Gaussian component
-        gaussian = normalizer * first_term * second_term
+        gaussian = ImageUtils.generate_gaussian_kernel(size=0, sigma=sigma)
         
         gaussian -= gaussian.mean()  # Normalize kernel to have zero sum
 
         # Convolve image with Gaussian kernel
-        filter_2d = MarrHildrethService.convolve2d(image_array, gaussian)
+        filter_2d = ImageUtils.convolve2d(image_array, gaussian)
 
         # Zero-crossing detection
         rows, cols = filter_2d.shape
