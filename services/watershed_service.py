@@ -21,28 +21,26 @@ class Watershed:
             if len(image_array.shape) == 3:
                 image_array = np.array(ImageUtils.convert_to_grayscale(ImageUtils.numpy_to_pil(image_array)))
 
-            # Generate Gaussian kernel
-            gaussian_kernel = ImageUtils.generate_gaussian_kernel(size=5, sigma=gaussian_sigma)
-
-            # Smooth image using Gaussian filter
-            smoothed_image = ImageUtils.convolve2d(image_array, gaussian_kernel)
+            # Apply Gaussian smoothing to reduce noise
+            if gaussian_sigma > 0:
+                gaussian_kernel = ImageUtils.generate_gaussian_kernel(size=5, sigma=gaussian_sigma)
+                image_array = ImageUtils.convolve2d(image_array, gaussian_kernel)
 
             # Compute gradient magnitude using Sobel operator
-            sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
-            sobel_y = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]])
+            sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
+            sobel_y = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=np.float32)
 
-            gradient_x = ImageUtils.convolve2d(smoothed_image, sobel_x)
-            gradient_y = ImageUtils.convolve2d(smoothed_image, sobel_y)
+            gradient_x = ImageUtils.convolve2d(image_array.astype(np.float32), sobel_x)
+            gradient_y = ImageUtils.convolve2d(image_array.astype(np.float32), sobel_y)
 
-            gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
-            gradient_magnitude = (gradient_magnitude / np.max(gradient_magnitude) * 255).astype(np.uint8)
+            gradient_magnitude = np.hypot(gradient_x, gradient_y)
 
-            # Apply Watershed algorithm
+            # Create markers and apply watershed
             markers = Watershed.create_markers(gradient_magnitude)
             labels = Watershed.watershed(gradient_magnitude, markers)
 
-            # Create colored visualization of segments
-            result_array = Watershed.visualize_segments(labels, image_array)
+            # Create visualization
+            result_array = Watershed.visualize_segments(labels)
             result_image = ImageUtils.numpy_to_pil(result_array)
             
             return result_image
@@ -51,93 +49,122 @@ class Watershed:
         
     @staticmethod
     def create_markers(gradient_magnitude: np.ndarray) -> np.ndarray:
-        """Create markers for watershed algorithm using Otsu thresholding."""
-        # Use Otsu to find automatic threshold
-        hist, bin_edges = np.histogram(gradient_magnitude.flatten(), bins=256, range=(0, 256))
-        total_pixels = gradient_magnitude.size
-        current_max, threshold = 0, 0
-        sum_total, sum_foreground = 0, 0
-        weight_background = 0
-
-        for i in range(256):
-            sum_total += i * hist[i]
-
-        for i in range(256):
-            weight_background += hist[i]
-            if weight_background == 0:
-                continue
-            
-            weight_foreground = total_pixels - weight_background
-            if weight_foreground == 0:
-                break
-
-            sum_foreground += i * hist[i]
-            mean_background = sum_foreground / weight_background
-            mean_foreground = (sum_total - sum_foreground) / weight_foreground
-            between_class_variance = weight_background * weight_foreground * (mean_background - mean_foreground) ** 2
-
-            if between_class_variance > current_max:
-                current_max = between_class_variance
-                threshold = i
-
-        # Create markers based on Otsu threshold
-        markers = np.zeros_like(gradient_magnitude, dtype=np.int32)
-        markers[gradient_magnitude < threshold * 0.5] = 1  # Background (sure)
-        markers[gradient_magnitude > threshold * 1.5] = 2  # Foreground (sure)
-        return markers
-    
-    @staticmethod
-    def watershed(gradient_magnitude: np.ndarray, markers: np.ndarray) -> np.ndarray:
-        height, width = gradient_magnitude.shape
-        labels = np.copy(markers)
-        priority_queue = []
-        WATERSHED_LINE = -1
-
-        # Initialize priority queue with marker pixels
-        for y in range(height):
-            for x in range(width):
-                if markers[y, x] > 0:
-                    heapq.heappush(priority_queue, (gradient_magnitude[y, x], (y, x)))
-
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-
-        while priority_queue:
-            _, (y, x) = heapq.heappop(priority_queue)
-
-            for dy, dx in directions:
-                ny, nx = y + dy, x + dx
-                if 0 <= ny < height and 0 <= nx < width:
-                    if labels[ny, nx] == 0:
-                        # Check if neighbors belong to different regions
-                        neighbor_labels = set()
-                        for ddy, ddx in directions:
-                            nny, nnx = ny + ddy, nx + ddx
-                            if 0 <= nny < height and 0 <= nnx < width and labels[nny, nnx] > 0:
-                                neighbor_labels.add(labels[nny, nnx])
-                        
-                        # If multiple labels around, mark as watershed
-                        if len(neighbor_labels) > 1:
-                            labels[ny, nx] = WATERSHED_LINE
-                        elif len(neighbor_labels) == 1:
-                            labels[ny, nx] = list(neighbor_labels)[0]
-                            heapq.heappush(priority_queue, (gradient_magnitude[ny, nx], (ny, nx)))
-
+        """
+        Create markers (seeds) for watershed algorithm.
+        Markers are regions with low gradient (homogeneous areas).
+        """
+        # Normalize gradient to 0-255 for threshold
+        grad_norm = ((gradient_magnitude / (gradient_magnitude.max() if gradient_magnitude.max() > 0 else 1)) * 255).astype(np.uint8)
+        
+        # Low gradient pixels are potential markers (basins)
+        # Threshold: pixels with gradient < 20 are considered markers
+        markers_mask = (grad_norm < 20).astype(np.uint8)
+        
+        rows, cols = markers_mask.shape
+        labels = np.zeros((rows, cols), dtype=np.int32)
+        visited = np.zeros((rows, cols), dtype=bool)
+        current_label = 1
+        
+        # Label connected components of markers using flood-fill
+        for i in range(rows):
+            for j in range(cols):
+                if markers_mask[i, j] == 1 and not visited[i, j]:
+                    # Start flood-fill for this component
+                    stack = [(i, j)]
+                    while stack:
+                        ci, cj = stack.pop()
+                        if 0 <= ci < rows and 0 <= cj < cols and markers_mask[ci, cj] == 1 and not visited[ci, cj]:
+                            visited[ci, cj] = True
+                            labels[ci, cj] = current_label
+                            
+                            # Add 4-connected neighbors
+                            for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                                ni, nj = ci + di, cj + dj
+                                if 0 <= ni < rows and 0 <= nj < cols and not visited[ni, nj]:
+                                    stack.append((ni, nj))
+                    
+                    current_label += 1
+        
         return labels
     
     @staticmethod
-    def visualize_segments(labels: np.ndarray, original_image: np.ndarray) -> np.ndarray:
-        """Create a colored visualization of watershed segments."""
-        height, width = labels.shape
-        result = np.zeros((height, width), dtype=np.uint8)
+    def watershed(gradient_magnitude: np.ndarray, markers: np.ndarray) -> np.ndarray:
+        """
+        Watershed algorithm using immersion simulation with priority queue.
+        Based on Meyer's flooding algorithm.
+        """
+        rows, cols = gradient_magnitude.shape
+        labels = markers.copy()
+        in_queue = np.zeros((rows, cols), dtype=bool)
+        priority_queue = []
+        WATERSHED_LINE = -1
         
-        # Mark watershed lines in white
-        result[labels == -1] = 255
+        # Helper function to get 4-connected neighbors
+        def get_neighbors(i, j):
+            for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                ni, nj = i + di, j + dj
+                if 0 <= ni < rows and 0 <= nj < cols:
+                    yield ni, nj
         
-        # Assign grayscale values to different regions
-        unique_labels = np.unique(labels[labels > 0])
-        for i, label in enumerate(unique_labels):
-            intensity = int((i + 1) * 255 / len(unique_labels))
-            result[labels == label] = intensity
+        # Initialize priority queue with neighbors of marked pixels (seeds)
+        for i in range(rows):
+            for j in range(cols):
+                if labels[i, j] > 0:  # If pixel is a seed
+                    for ni, nj in get_neighbors(i, j):
+                        if labels[ni, nj] == 0 and not in_queue[ni, nj]:
+                            # Enqueue unlabeled neighbors with gradient as priority
+                            heapq.heappush(priority_queue, (float(gradient_magnitude[ni, nj]), ni, nj, labels[i, j]))
+                            in_queue[ni, nj] = True
         
-        return result
+        # Process queue in order of increasing gradient (altitude)
+        while priority_queue:
+            grad_val, i, j, source_label = heapq.heappop(priority_queue)
+            
+            # Skip if already labeled
+            if labels[i, j] != 0:
+                continue
+            
+            # Check labels of neighbors
+            neighbor_labels = set()
+            for ni, nj in get_neighbors(i, j):
+                label = labels[ni, nj]
+                if label > 0:  # Positive labels only (ignore watershed lines)
+                    neighbor_labels.add(label)
+            
+            if len(neighbor_labels) == 0:
+                # No labeled neighbors yet: assign source label
+                labels[i, j] = source_label
+            elif len(neighbor_labels) == 1:
+                # All labeled neighbors belong to the same basin
+                labels[i, j] = neighbor_labels.pop()
+            else:
+                # Conflict: neighbors from different basins -> watershed line
+                labels[i, j] = WATERSHED_LINE
+            
+            # Enqueue unlabeled neighbors of this pixel
+            if labels[i, j] > 0:  # Only propagate if not a watershed line
+                for ni, nj in get_neighbors(i, j):
+                    if labels[ni, nj] == 0 and not in_queue[ni, nj]:
+                        heapq.heappush(priority_queue, (float(gradient_magnitude[ni, nj]), ni, nj, labels[i, j]))
+                        in_queue[ni, nj] = True
+        
+        return labels
     
+    @staticmethod
+    def visualize_segments(labels: np.ndarray) -> np.ndarray:
+        """
+        Create visualization: map positive labels to grayscale, watershed lines to black.
+        """
+        rows, cols = labels.shape
+        output = np.zeros((rows, cols), dtype=np.uint8)
+        
+        max_label = labels.max()
+        if max_label > 0:
+            # Map labels 1..max_label to intensities 1..255
+            for label in range(1, max_label + 1):
+                intensity = int((label / max_label) * 255)
+                output[labels == label] = intensity
+        
+        # Watershed lines (label == -1) remain black (0)
+        
+        return output
