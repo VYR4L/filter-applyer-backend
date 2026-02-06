@@ -128,4 +128,47 @@ class ImageUtils:
     def save_image(image: Image.Image, path: str) -> None:
         image.save(path)
 
+    @staticmethod
+    def label_connected_components(binary_image: np.ndarray) -> np.ndarray:
+        """
+        Label connected components in a binary image using flood-fill.
+        
+        Args:
+            binary_image: Binary image (0 or 1, uint8)
+        
+        Returns:
+            Labeled image where each connected component has a unique label
+        """
+        rows, cols = binary_image.shape
+        labels = np.zeros((rows, cols), dtype=np.int32)
+        current_label = 1
+        
+        def flood_fill(start_i, start_j, label):
+            """Flood fill using iterative approach with stack."""
+            stack = [(start_i, start_j)]
+            
+            while stack:
+                i, j = stack.pop()
+                
+                # Check bounds and if pixel should be labeled
+                if (0 <= i < rows and 0 <= j < cols and 
+                    binary_image[i, j] == 1 and labels[i, j] == 0):
+                    
+                    labels[i, j] = label
+                    
+                    # Add 4-connected neighbors to stack
+                    stack.append((i - 1, j))  # Top
+                    stack.append((i + 1, j))  # Bottom
+                    stack.append((i, j - 1))  # Left
+                    stack.append((i, j + 1))  # Right
+        
+        # Scan image and label each connected component
+        for i in range(rows):
+            for j in range(cols):
+                if binary_image[i, j] == 1 and labels[i, j] == 0:
+                    # Found new connected component
+                    flood_fill(i, j, current_label)
+                    current_label += 1
+        
+        return labels
  
