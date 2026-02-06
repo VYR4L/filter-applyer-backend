@@ -9,7 +9,7 @@ load_dotenv()
 class Settings:
     """Configurações da aplicação."""
     APP_HOST: str = os.getenv("APP_HOST", "0.0.0.0")
-    APP_PORT: int = int(os.getenv("APP_PORT", 8000))
+    APP_PORT: int = int(os.getenv("PORT", os.getenv("APP_PORT", 8000)))
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
 
     match DEBUG:
