@@ -14,6 +14,19 @@ router = APIRouter(
 async def otsu_method_process(
     file: UploadFile = File(...),
 ) -> Response:
+    """
+    Apply Otsu's automatic thresholding method.
+    
+    Otsu's method automatically calculates the optimal threshold
+    value that separates foreground from background by maximizing
+    the between-class variance.
+    
+    Parameters:
+    - file: Input image
+    
+    Returns:
+    - Binary image (black and white)
+    """
     # Save uploaded file to a temporary location
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
         content = await file.read()

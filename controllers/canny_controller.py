@@ -12,6 +12,18 @@ class CannyController:
         low_threshold: float,
         high_threshold: float
     ) -> Response:
+        """
+        Process image with Canny edge detection.
+        
+        Args:
+            image_path: Path to input image
+            sigma: Standard deviation for Gaussian smoothing
+            low_threshold: Lower threshold for hysteresis (0-1)
+            high_threshold: Upper threshold for hysteresis (0-1)
+        
+        Returns:
+            Edge detected image as PNG response
+        """
         result_image = CannyService.process_image(
             image_path, sigma, low_threshold, high_threshold
         )

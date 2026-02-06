@@ -15,6 +15,19 @@ async def watershed_process(
     file: UploadFile = File(...),
     gaussian_sigma: float = Form(1.0),
 ) -> Response:
+    """
+    Segment image using Watershed algorithm.
+    
+    The watershed algorithm treats the image as a topographic surface
+    and segments it by simulating flooding from regional minima.
+    
+    Parameters:
+    - file: Input image
+    - gaussian_sigma: Smoothing parameter to reduce noise (default: 1.0)
+    
+    Returns:
+    - Segmented image with regions in different intensities
+    """
     # Save uploaded file to a temporary location
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
         content = await file.read()

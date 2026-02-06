@@ -16,6 +16,20 @@ async def marr_hildreth_process(
     sigma: float = Form(1.0),
     threshold: Optional[float] = Form(0.1)
 ) -> Response:
+    """
+    Detect edges using Marr-Hildreth (Laplacian of Gaussian) algorithm.
+    
+    Applies Laplacian of Gaussian filter and detects zero-crossings
+    to identify edges. Provides good localization and noise robustness.
+    
+    Parameters:
+    - file: Input image
+    - sigma: Standard deviation for Gaussian (default: 1.0)
+    - threshold: Threshold for zero-crossing detection (default: 0.1)
+    
+    Returns:
+    - Binary image with detected edges
+    """
     # Save uploaded file to a temporary location
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
         content = await file.read()

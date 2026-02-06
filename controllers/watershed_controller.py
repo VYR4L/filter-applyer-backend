@@ -9,6 +9,16 @@ class WatershedController:
         image_path: str,
         gaussian_sigma: float = 1.0,
     ) -> Response:
+        """
+        Process image with Watershed segmentation.
+        
+        Args:
+            image_path: Path to input image
+            gaussian_sigma: Gaussian smoothing parameter (default: 1.0)
+        
+        Returns:
+            Segmented image as PNG response
+        """
         result_image = Watershed.process_image(image_path, gaussian_sigma)
         image_bytes = ImageUtils.image_to_bytes(result_image)
         return Response(content=image_bytes, media_type="image/png")

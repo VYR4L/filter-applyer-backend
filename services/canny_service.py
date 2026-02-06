@@ -39,6 +39,18 @@ class CannyService:
         low_threshold: float,
         high_threshold: float,
         ) -> np.ndarray:
+        """
+        Detect edges using Canny algorithm.
+        
+        Args:
+            image_array: Input grayscale image
+            sigma: Standard deviation for Gaussian smoothing
+            low_threshold: Lower threshold for hysteresis (0-1)
+            high_threshold: Upper threshold for hysteresis (0-1)
+        
+        Returns:
+            Binary edge map
+        """
         if image_array is None:
             raise ValueError("Input image array cannot be None")
         

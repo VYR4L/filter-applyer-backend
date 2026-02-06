@@ -11,6 +11,17 @@ class MarrHildrethController:
         sigma: float,
         threshold: Optional[float]
     ) -> Response:
+        """
+        Process image with Marr-Hildreth edge detection.
+        
+        Args:
+            image_path: Path to input image
+            sigma: Standard deviation for Laplacian of Gaussian
+            threshold: Threshold for zero-crossing detection
+        
+        Returns:
+            Edge detected image as PNG response
+        """
         result_image = MarrHildrethService.process_image(
             image_path, sigma, threshold
         )

@@ -118,7 +118,7 @@ class Watershed:
         
         # Process queue in order of increasing gradient (altitude)
         while priority_queue:
-            grad_val, i, j, source_label = heapq.heappop(priority_queue)
+            _, i, j, source_label = heapq.heappop(priority_queue)
             
             # Skip if already labeled
             if labels[i, j] != 0:
