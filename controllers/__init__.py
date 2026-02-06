@@ -1,6 +1,6 @@
 from .marr_hildreth_controller import MarrHildrethController
 from .canny_controller import CannyController
-from .otus_method_controller import OtsuMethodController
+from .otus_method_controller import OtusMethodController
 from .watershed_controller import WatershedController
 from .freeman_chain_controller import FreemanChainController
 from .object_count_controller import ObjectCountController
