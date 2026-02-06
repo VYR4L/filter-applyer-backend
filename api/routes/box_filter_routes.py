@@ -12,7 +12,7 @@ router = APIRouter(
 @router.post("/process", status_code=200)
 async def box_filter_process(
     file: UploadFile = File(...),
-    box_size: int = Form(3),
+    box_size: int = Form(3),  # Deixei o usuário escolher o tamanho da caixa
 ) -> Response:
     """
     Apply box filter (mean filter) to reduce noise in image.
