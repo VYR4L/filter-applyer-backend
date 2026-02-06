@@ -5,6 +5,10 @@ from api.routes import (
     canny_routes,
     otsu_method_routes,
     watershed_routes,
+    freeman_chain_routes,
+    object_count_routes,
+    box_filter_routes,
+    segmentation_filter_routes
 )
 import uvicorn
 from config import Settings
@@ -44,6 +48,15 @@ app.include_router(marr_hildreth_routes.router)
 app.include_router(canny_routes.router)
 app.include_router(otsu_method_routes.router)
 app.include_router(watershed_routes.router)
+app.include_router(freeman_chain_routes.router)
+app.include_router(object_count_routes.router)
+app.include_router(box_filter_routes.router)
+app.include_router(segmentation_filter_routes.router)
+
+# Enquanto o detector de Canny otimiza a localização e a supressão de ruído via gradientes direcionais,
+# o algoritmo de Marr-Hildreth oferece contornos intrinsecamente fechados através de cruzamentos por zero no Laplaciano.
+# Com o ajuste preciso do Sigma e do limiar de inclinação (threshold), o Marr-Hildreth aproxima-se da performance do Canny,
+# destacando-se em aplicações que priorizam a continuidade topológica em diferentes escalas espaciais.
 
 @app.get("/")
 async def root():
